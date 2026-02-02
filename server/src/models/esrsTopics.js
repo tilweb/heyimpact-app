@@ -1,0 +1,45 @@
+export const SDG_DEFINITIONS = {
+  1: { name: 'Keine Armut', name_en: 'No Poverty', icon: '\u{1F3E0}', color: '#E5243B' },
+  2: { name: 'Kein Hunger', name_en: 'Zero Hunger', icon: '\u{1F37D}\uFE0F', color: '#DDA63A' },
+  3: { name: 'Gesundheit und Wohlergehen', name_en: 'Good Health and Well-being', icon: '\u2764\uFE0F', color: '#4C9F38' },
+  4: { name: 'Hochwertige Bildung', name_en: 'Quality Education', icon: '\u{1F4DA}', color: '#C5192D' },
+  5: { name: 'Geschlechtergleichheit', name_en: 'Gender Equality', icon: '\u26A7\uFE0F', color: '#FF3A21' },
+  6: { name: 'Sauberes Wasser und Sanitäreinrichtungen', name_en: 'Clean Water and Sanitation', icon: '\u{1F4A7}', color: '#26BDE2' },
+  7: { name: 'Bezahlbare und saubere Energie', name_en: 'Affordable and Clean Energy', icon: '\u26A1', color: '#FCC30B' },
+  8: { name: 'Menschenwürdige Arbeit und Wirtschaftswachstum', name_en: 'Decent Work and Economic Growth', icon: '\u{1F4BC}', color: '#A21942' },
+  9: { name: 'Industrie, Innovation und Infrastruktur', name_en: 'Industry, Innovation and Infrastructure', icon: '\u{1F3ED}', color: '#FD6925' },
+  10: { name: 'Weniger Ungleichheiten', name_en: 'Reduced Inequalities', icon: '\u2696\uFE0F', color: '#DD1367' },
+  11: { name: 'Nachhaltige Städte und Gemeinden', name_en: 'Sustainable Cities and Communities', icon: '\u{1F3D9}\uFE0F', color: '#FD9D24' },
+  12: { name: 'Nachhaltiger Konsum und Produktion', name_en: 'Responsible Consumption and Production', icon: '\u267B\uFE0F', color: '#BF8B2E' },
+  13: { name: 'Maßnahmen zum Klimaschutz', name_en: 'Climate Action', icon: '\u{1F30D}', color: '#3F7E44' },
+  14: { name: 'Leben unter Wasser', name_en: 'Life Below Water', icon: '\u{1F41F}', color: '#0A97D9' },
+  15: { name: 'Leben an Land', name_en: 'Life on Land', icon: '\u{1F332}', color: '#56C02B' },
+  16: { name: 'Frieden, Gerechtigkeit und starke Institutionen', name_en: 'Peace, Justice and Strong Institutions', icon: '\u2696\uFE0F', color: '#00689D' },
+  17: { name: 'Partnerschaften zur Erreichung der Ziele', name_en: 'Partnerships for the Goals', icon: '\u{1F91D}', color: '#19486A' },
+};
+
+export const ESRS_SDG_MAPPING = {
+  E1: [7, 9, 13],
+  E2: [3, 6, 12, 14, 15],
+  E3: [6, 14],
+  E4: [14, 15],
+  E5: [9, 12],
+  S1: [3, 4, 5, 8, 10],
+  S2: [1, 8, 10, 12],
+  S3: [1, 2, 3, 6, 11],
+  S4: [3, 12, 16],
+  G1: [8, 12, 16, 17],
+};
+
+export const ESRS_TOPICS = [
+  { code: 'E1', name: 'E1 - Klimawandel', category: 'Umwelt' },
+  { code: 'E2', name: 'E2 - Umweltverschmutzung', category: 'Umwelt' },
+  { code: 'E3', name: 'E3 - Wasser- und Meeresressourcen', category: 'Umwelt' },
+  { code: 'E4', name: 'E4 - Biodiversität und Ökosysteme', category: 'Umwelt' },
+  { code: 'E5', name: 'E5 - Kreislaufwirtschaft', category: 'Umwelt' },
+  { code: 'S1', name: 'S1 - Eigene Belegschaft', category: 'Soziales' },
+  { code: 'S2', name: 'S2 - Arbeitskräfte in der Wertschöpfungskette', category: 'Soziales' },
+  { code: 'S3', name: 'S3 - Betroffene Gemeinschaften', category: 'Soziales' },
+  { code: 'S4', name: 'S4 - Verbraucher und Endnutzer', category: 'Soziales' },
+  { code: 'G1', name: 'G1 - Unternehmenspolitik', category: 'Governance' },
+];
