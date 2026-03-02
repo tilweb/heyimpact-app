@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import config from './config.js';
@@ -12,6 +13,11 @@ import chatRoutes from './routes/chat.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Ensure persistent data directories exist
+fs.mkdirSync(config.reportsDir, { recursive: true });
+fs.mkdirSync(config.uploadsDir, { recursive: true });
+
 const app = express();
 
 app.use(cors());
