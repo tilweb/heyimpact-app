@@ -57,8 +57,8 @@ router.post('/iro-description', async (req, res) => {
 
 router.post('/item-description', async (req, res) => {
   try {
-    const { type, title, topic } = req.body;
-    const text = await llmService.generateItemDescription(type, title, topic);
+    const { type, title, topic, context, existingDescription } = req.body;
+    const text = await llmService.generateItemDescription(type, title, topic, context, existingDescription);
     res.json({ text });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -99,6 +99,16 @@ router.post('/esg-management-system', async (req, res) => {
   try {
     const { report } = req.body;
     const text = await llmService.generateESGManagementSystem(report);
+    res.json({ text });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/cockpit-status', async (req, res) => {
+  try {
+    const { report, gap_summary } = req.body;
+    const text = await llmService.generateCockpitStatus(report, gap_summary);
     res.json({ text });
   } catch (err) {
     res.status(500).json({ error: err.message });

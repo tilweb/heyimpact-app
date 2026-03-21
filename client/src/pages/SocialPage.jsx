@@ -12,6 +12,7 @@ import PlaceholderBox from '../components/ui/PlaceholderBox.jsx';
 import SectionStatusBar from '../components/ui/SectionStatusBar.jsx';
 import { getMaterialTopicCodes } from '../utils/scoring.js';
 import TopicItemsSection from '../components/TopicItemsSection.jsx';
+import { getTopicCoverage } from '../utils/completeness.js';
 
 export default function SocialPage() {
   const { report, updateReport } = useReport();
@@ -104,14 +105,17 @@ export default function SocialPage() {
   };
 
   // --- Sub-tab helper ---
-  const renderTopicWithSubTabs = (topicCode, metricsContent) => (
-    <TabPanel tabs={[
-      { label: 'Metriken', content: metricsContent },
-      { label: 'Richtlinien', content: <TopicItemsSection topicCode={topicCode} section="policies" /> },
-      { label: 'Ziele', content: <TopicItemsSection topicCode={topicCode} section="targets" /> },
-      { label: 'Massnahmen', content: <TopicItemsSection topicCode={topicCode} section="actions" /> },
-    ]} />
-  );
+  const renderTopicWithSubTabs = (topicCode, metricsContent) => {
+    const cov = getTopicCoverage(report, topicCode);
+    return (
+      <TabPanel tabs={[
+        { label: 'Metriken', content: metricsContent },
+        { label: `Richtlinien (${cov.policy})`, content: <TopicItemsSection topicCode={topicCode} section="policies" /> },
+        { label: `Ziele (${cov.target})`, content: <TopicItemsSection topicCode={topicCode} section="targets" /> },
+        { label: `Maßnahmen (${cov.action})`, content: <TopicItemsSection topicCode={topicCode} section="actions" /> },
+      ]} />
+    );
+  };
 
   // --- Computed metrics ---
   const femalePercentage = demographics.total_employees
@@ -124,10 +128,10 @@ export default function SocialPage() {
 
   // --- Tab labels ---
   const TAB_LABELS = [
-    `S1 - Eigene Belegschaft ${isMaterial('S1') ? '\u2705' : '\u2B1C'}`,
-    `S2 - Wertsch\u00F6pfungskette ${isMaterial('S2') ? '\u2705' : '\u2B1C'}`,
-    `S3 - Betroffene Gemeinschaften ${isMaterial('S3') ? '\u2705' : '\u2B1C'}`,
-    `S4 - Verbraucher und Endnutzer ${isMaterial('S4') ? '\u2705' : '\u2B1C'}`,
+    `S1 - Eigene Belegschaft ${isMaterial('S1') ? '✅' : '⬜'}`,
+    `S2 - Wertschöpfungskette ${isMaterial('S2') ? '✅' : '⬜'}`,
+    `S3 - Betroffene Gemeinschaften ${isMaterial('S3') ? '✅' : '⬜'}`,
+    `S4 - Verbraucher und Endnutzer ${isMaterial('S4') ? '✅' : '⬜'}`,
   ];
 
   // --- Tab S1: Eigene Belegschaft ---
@@ -157,19 +161,19 @@ export default function SocialPage() {
               onChange={(v) => handleS1Change('demographics', 'temporary_employees', v)}
             />
             <FormField
-              label="Vollzeitbesch\u00E4ftigte"
+              label="Vollzeitbeschäftigte"
               type="number"
               value={demographics.full_time_employees || ''}
               onChange={(v) => handleS1Change('demographics', 'full_time_employees', v)}
             />
             <FormField
-              label="Teilzeitbesch\u00E4ftigte"
+              label="Teilzeitbeschäftigte"
               type="number"
               value={demographics.part_time_employees || ''}
               onChange={(v) => handleS1Change('demographics', 'part_time_employees', v)}
             />
             <FormField
-              label="FTE (Vollzeit\u00E4quivalente)"
+              label="FTE (Vollzeitäquivalente)"
               type="number"
               value={demographics.fte || ''}
               onChange={(v) => handleS1Change('demographics', 'fte', v)}
@@ -189,7 +193,7 @@ export default function SocialPage() {
               onChange={(v) => handleS1Change('demographics', 'employees_eu', v)}
             />
             <FormField
-              label="Mitarbeiter au\u00DFerhalb EU"
+              label="Mitarbeiter außerhalb EU"
               type="number"
               value={demographics.employees_non_eu || ''}
               onChange={(v) => handleS1Change('demographics', 'employees_non_eu', v)}
@@ -210,7 +214,7 @@ export default function SocialPage() {
               onChange={(v) => handleS1Change('demographics', 'female_employees', v)}
             />
             <FormField
-              label="M\u00E4nnliche Mitarbeiter"
+              label="Männliche Mitarbeiter"
               type="number"
               value={demographics.male_employees || ''}
               onChange={(v) => handleS1Change('demographics', 'male_employees', v)}
@@ -227,7 +231,7 @@ export default function SocialPage() {
               label="Frauenanteil"
               value={femalePercentage}
               unit="%"
-              icon="\u2640\uFE0F"
+              icon="♀️"
             />
           </div>
         </div>
@@ -250,7 +254,7 @@ export default function SocialPage() {
             onChange={(v) => handleS1Change('demographics', 'age_30_50', v)}
           />
           <FormField
-            label="\u00DCber 50 Jahre"
+            label="Über 50 Jahre"
             type="number"
             value={demographics.over_50 || ''}
             onChange={(v) => handleS1Change('demographics', 'over_50', v)}
@@ -258,19 +262,19 @@ export default function SocialPage() {
         </div>
       </Card>
 
-      {/* F\u00FChrungskr\u00E4fte */}
+      {/* Führungskräfte */}
       <Card padding={tokens.spacing.xl}>
-        <h3 style={sectionTitle}>F\u00FChrungskr\u00E4fte</h3>
+        <h3 style={sectionTitle}>Führungskräfte</h3>
         <div style={gridTwo}>
           <div style={sectionGap}>
             <FormField
-              label="F\u00FChrungskr\u00E4fte gesamt"
+              label="Führungskräfte gesamt"
               type="number"
               value={demographics.total_management || ''}
               onChange={(v) => handleS1Change('demographics', 'total_management', v)}
             />
             <FormField
-              label="Weibliche F\u00FChrungskr\u00E4fte"
+              label="Weibliche Führungskräfte"
               type="number"
               value={demographics.female_management || ''}
               onChange={(v) => handleS1Change('demographics', 'female_management', v)}
@@ -290,10 +294,10 @@ export default function SocialPage() {
           </div>
           <div style={sectionGap}>
             <MetricCard
-              label="Frauenanteil F\u00FChrung"
+              label="Frauenanteil Führung"
               value={femaleMgmtPercentage}
               unit="%"
-              icon="\u2640\uFE0F"
+              icon="♀️"
             />
           </div>
         </div>
@@ -305,19 +309,19 @@ export default function SocialPage() {
         <div style={gridTwo}>
           <div style={sectionGap}>
             <FormField
-              label="Arbeitsunf\u00E4lle"
+              label="Arbeitsunfälle"
               type="number"
               value={healthSafety.work_accidents || ''}
               onChange={(v) => handleS1Change('health_safety', 'work_accidents', v)}
             />
             <FormField
-              label="T\u00F6dliche Unf\u00E4lle"
+              label="Tödliche Unfälle"
               type="number"
               value={healthSafety.fatal_accidents || ''}
               onChange={(v) => handleS1Change('health_safety', 'fatal_accidents', v)}
             />
             <FormField
-              label="Ausfalltage durch Unf\u00E4lle"
+              label="Ausfalltage durch Unfälle"
               type="number"
               value={healthSafety.lost_days_accidents || ''}
               onChange={(v) => handleS1Change('health_safety', 'lost_days_accidents', v)}
@@ -336,7 +340,7 @@ export default function SocialPage() {
               step={0.1}
             />
             <FormField
-              label="Sicherheitsschulungen durchgef\u00FChrt"
+              label="Sicherheitsschulungen durchgeführt"
               type="number"
               value={healthSafety.safety_trainings_conducted || ''}
               onChange={(v) => handleS1Change('health_safety', 'safety_trainings_conducted', v)}
@@ -351,7 +355,7 @@ export default function SocialPage() {
               rows={5}
             />
             <FormField
-              label="Psychische Gesundheit / Unterst\u00FCtzung"
+              label="Psychische Gesundheit / Unterstützung"
               type="textarea"
               value={healthSafety.mental_health_support || ''}
               onChange={(v) => handleS1Change('health_safety', 'mental_health_support', v)}
@@ -394,7 +398,7 @@ export default function SocialPage() {
               onChange={(v) => handleS1Change('training', 'apprentices_current', v)}
             />
             <FormField
-              label="Ausbildungspl\u00E4tze"
+              label="Ausbildungsplätze"
               type="number"
               value={training.apprenticeship_positions || ''}
               onChange={(v) => handleS1Change('training', 'apprenticeship_positions', v)}
@@ -403,9 +407,9 @@ export default function SocialPage() {
         </div>
       </Card>
 
-      {/* Verg\u00FCtung */}
+      {/* Vergütung */}
       <Card padding={tokens.spacing.xl}>
-        <h3 style={sectionTitle}>Verg\u00FCtung</h3>
+        <h3 style={sectionTitle}>Vergütung</h3>
         <div style={gridTwo}>
           <FormField
             label="Gender Pay Gap (%)"
@@ -451,7 +455,7 @@ export default function SocialPage() {
               onChange={(v) => handleS1Change('engagement', 'works_council_exists', v)}
             />
             <FormField
-              label="Mitarbeiterbefragung durchgef\u00FChrt"
+              label="Mitarbeiterbefragung durchgeführt"
               type="checkbox"
               value={engagement.engagement_survey_conducted || false}
               onChange={(v) => handleS1Change('engagement', 'engagement_survey_conducted', v)}
@@ -798,7 +802,7 @@ export default function SocialPage() {
       <SectionStatusBar route="/social" />
 
       <InfoBox variant="info" style={{ marginBottom: tokens.spacing.xxl }}>
-        Erfassen Sie hier die sozialen Kennzahlen gem\u00E4\u00DF ESRS S1\u2013S4. Die Tabs zeigen den Wesentlichkeitsstatus aus der IRO-Bewertung an.
+        Erfassen Sie hier die sozialen Kennzahlen gemäß ESRS S1–S4. Die Tabs zeigen den Wesentlichkeitsstatus aus der IRO-Bewertung an.
       </InfoBox>
 
       <TabPanel

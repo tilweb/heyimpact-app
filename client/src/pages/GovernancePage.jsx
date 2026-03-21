@@ -11,6 +11,7 @@ import PlaceholderBox from '../components/ui/PlaceholderBox.jsx';
 import SectionStatusBar from '../components/ui/SectionStatusBar.jsx';
 import { getMaterialTopicCodes } from '../utils/scoring.js';
 import TopicItemsSection from '../components/TopicItemsSection.jsx';
+import { getTopicCoverage } from '../utils/completeness.js';
 
 const REPORTING_FREQUENCY_OPTIONS = [
   '',
@@ -767,6 +768,7 @@ export default function GovernancePage() {
   );
 
   // --- Main tabs ---
+  const g1Cov = getTopicCoverage(report, 'G1');
   const tabs = [
     { label: 'Governance-Struktur', content: renderGovernanceStruktur() },
     { label: 'Compliance-Framework', content: renderComplianceFramework() },
@@ -774,9 +776,9 @@ export default function GovernancePage() {
     { label: 'Datensicherheit', content: renderDatensicherheit() },
     { label: 'KI-Governance', content: renderKIGovernance() },
     { label: 'Kontroverse Sektoren', content: renderKontroverseSektoren() },
-    { label: 'Richtlinien', content: <TopicItemsSection topicCode="G1" section="policies" /> },
-    { label: 'Ziele', content: <TopicItemsSection topicCode="G1" section="targets" /> },
-    { label: 'Massnahmen', content: <TopicItemsSection topicCode="G1" section="actions" /> },
+    { label: `Richtlinien (${g1Cov.policy})`, content: <TopicItemsSection topicCode="G1" section="policies" /> },
+    { label: `Ziele (${g1Cov.target})`, content: <TopicItemsSection topicCode="G1" section="targets" /> },
+    { label: `Maßnahmen (${g1Cov.action})`, content: <TopicItemsSection topicCode="G1" section="actions" /> },
   ];
 
   return (

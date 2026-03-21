@@ -72,12 +72,12 @@ export function useLLM() {
     }
   }, [apiFetch]);
 
-  const generateItemDescription = useCallback(async (type, title, topic) => {
+  const generateItemDescription = useCallback(async (type, title, topic, context, existingDescription) => {
     setGenerating(true);
     try {
       const { text } = await apiFetch('/api/llm/item-description', {
         method: 'POST',
-        body: JSON.stringify({ type, title, topic }),
+        body: JSON.stringify({ type, title, topic, context, existingDescription }),
       });
       return text;
     } finally {
@@ -165,5 +165,18 @@ export function useLLM() {
     }
   }, [apiFetch, token]);
 
-  return { generating, generateImpactSummary, generateFinancialSummary, generateJustification, generateNonRelevanceJustification, generateIRODescription, generateItemDescription, suggestSDG, generateExecutiveSummary, generateManagementReport, generateESGManagementSystem, extractPolicyFromDocument };
+  const generateCockpitStatus = useCallback(async (report, gapSummary) => {
+    setGenerating(true);
+    try {
+      const { text } = await apiFetch('/api/llm/cockpit-status', {
+        method: 'POST',
+        body: JSON.stringify({ report, gap_summary: gapSummary }),
+      });
+      return text;
+    } finally {
+      setGenerating(false);
+    }
+  }, [apiFetch]);
+
+  return { generating, generateImpactSummary, generateFinancialSummary, generateJustification, generateNonRelevanceJustification, generateIRODescription, generateItemDescription, suggestSDG, generateExecutiveSummary, generateManagementReport, generateESGManagementSystem, extractPolicyFromDocument, generateCockpitStatus };
 }

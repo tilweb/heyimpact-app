@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useReport } from '../hooks/useReport.js';
 import { useLLM } from '../hooks/useLLM.js';
+import { getMaterialTopicCodes } from '../utils/scoring.js';
+import { buildReportContext } from '../utils/llmContext.js';
 import tokens from '../theme/tokens.js';
 import Button from './ui/Button.jsx';
 import FormField from './ui/FormField.jsx';
@@ -18,9 +20,9 @@ const ACTION_STATUSES = ['Geplant', 'In Umsetzung', 'Abgeschlossen', 'Laufend', 
 const sectionGap = { display: 'flex', flexDirection: 'column', gap: tokens.spacing.lg };
 const gridTwo = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: tokens.spacing.lg };
 
-const emptyPolicy = (topic) => ({
+const emptyPolicy = (topic, isMaterial) => ({
   topic, title: '', description: '', policy_type: 'Richtlinie',
-  is_mandatory: false, status: 'Entwurf', responsible_person: '', responsible_department: '',
+  is_mandatory: isMaterial, status: 'Entwurf', responsible_person: '', responsible_department: '',
 });
 
 const emptyTarget = (topic) => ({
@@ -36,6 +38,7 @@ const emptyAction = (topic) => ({
   budget: 0,
 });
 
+
 // section: "policies" | "targets" | "actions"
 export default function TopicItemsSection({ topicCode, section }) {
   const { report, updateReport } = useReport();
@@ -44,8 +47,12 @@ export default function TopicItemsSection({ topicCode, section }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState({});
+  const [aiSuggestion, setAiSuggestion] = useState(null);
 
   if (!report) return null;
+
+  const materialCodes = getMaterialTopicCodes(report);
+  const isMaterial = materialCodes.includes(topicCode);
 
   const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
 
@@ -53,16 +60,76 @@ export default function TopicItemsSection({ topicCode, section }) {
   const targets = (report.targets || []).filter(t => t.topic === topicCode);
   const actions = (report.actions || []).filter(a => a.topic === topicCode);
 
+  // --- AI suggestion helpers ---
+  const generateAndPreview = async (type) => {
+    const existingDescription = formData.description?.trim() || null;
+    const text = await generateItemDescription(type, formData.title, topicCode, buildReportContext(report, topicCode), existingDescription);
+    if (text) setAiSuggestion(text);
+  };
+
+  const aiButtonLabel = (baseLabel) => {
+    if (generating) return 'Generiere...';
+    return formData.description?.trim() ? 'KI verbessern' : baseLabel;
+  };
+
+  const applyAiSuggestion = (mode) => {
+    if (mode === 'replace') {
+      setFormData(p => ({ ...p, description: aiSuggestion }));
+    } else if (mode === 'append') {
+      setFormData(p => ({ ...p, description: [p.description, aiSuggestion].filter(Boolean).join('\n\n') }));
+    }
+    setAiSuggestion(null);
+  };
+
+  const renderAiSuggestion = () => {
+    if (!aiSuggestion) return null;
+    return (
+      <div style={{
+        background: `${tokens.colors.primary}08`,
+        border: `1px solid ${tokens.colors.primary}33`,
+        borderRadius: tokens.radii.md,
+        padding: tokens.spacing.lg,
+      }}>
+        <div style={{
+          fontSize: tokens.typography.fontSize.xs,
+          fontWeight: tokens.typography.fontWeight.semibold,
+          color: tokens.colors.primary,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          marginBottom: tokens.spacing.sm,
+        }}>
+          KI-Vorschlag
+        </div>
+        <p style={{
+          fontSize: tokens.typography.fontSize.sm,
+          color: tokens.colors.text,
+          lineHeight: 1.6,
+          margin: `0 0 ${tokens.spacing.md}px`,
+          whiteSpace: 'pre-wrap',
+        }}>
+          {aiSuggestion}
+        </p>
+        <div style={{ display: 'flex', gap: tokens.spacing.sm, flexWrap: 'wrap' }}>
+          <Button size="sm" onClick={() => applyAiSuggestion('replace')}>Übernehmen</Button>
+          <Button size="sm" variant="secondary" onClick={() => applyAiSuggestion('append')}>Anhängen</Button>
+          <Button size="sm" variant="secondary" onClick={() => setAiSuggestion(null)}>Verwerfen</Button>
+        </div>
+      </div>
+    );
+  };
+
   // --- Generic helpers ---
   const openCreate = (defaults) => {
     setEditId(null);
     setFormData(defaults);
+    setAiSuggestion(null);
     setModalOpen(true);
   };
 
   const openEdit = (item) => {
     setEditId(item.id);
     setFormData({ ...item });
+    setAiSuggestion(null);
     setModalOpen(true);
   };
 
@@ -70,6 +137,7 @@ export default function TopicItemsSection({ topicCode, section }) {
     setModalOpen(false);
     setEditId(null);
     setFormData({});
+    setAiSuggestion(null);
   };
 
   const deleteItem = (arrayKey, id) => {
@@ -189,7 +257,7 @@ export default function TopicItemsSection({ topicCode, section }) {
       <div style={sectionGap}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={itemMeta}>{policies.length} Richtlinie{policies.length !== 1 ? 'n' : ''} erfasst</span>
-          <Button size="sm" onClick={() => openCreate(emptyPolicy(topicCode))} icon="➕">Neue Richtlinie</Button>
+          <Button size="sm" onClick={() => openCreate(emptyPolicy(topicCode, isMaterial))} icon="➕">Neue Richtlinie</Button>
         </div>
 
         {policies.length === 0 && (
@@ -224,18 +292,27 @@ export default function TopicItemsSection({ topicCode, section }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tokens.spacing.xs }}>
                 <label style={{ fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.medium, color: tokens.colors.textSecondary }}>Beschreibung</label>
-                <Button variant="ai" size="sm" disabled={generating || !formData.title} onClick={async () => {
-                  const text = await generateItemDescription('policy', formData.title, topicCode);
-                  setFormData(p => ({ ...p, description: text }));
-                }}>{generating ? 'Generiere...' : 'KI-Beschreibung'}</Button>
+                <Button variant="ai" size="sm" disabled={generating || !formData.title} onClick={() => generateAndPreview('policy')}>{aiButtonLabel('KI-Beschreibung')}</Button>
               </div>
               <FormField type="textarea" value={formData.description || ''} onChange={(v) => setFormData(p => ({ ...p, description: v }))} rows={4} />
+              {renderAiSuggestion()}
             </div>
             <div style={gridTwo}>
               <FormField label="Art der Richtlinie" type="select" value={formData.policy_type || 'Richtlinie'} onChange={(v) => setFormData(p => ({ ...p, policy_type: v }))} options={POLICY_TYPES} />
               <FormField label="Status" type="select" value={formData.status || 'Entwurf'} onChange={(v) => setFormData(p => ({ ...p, status: v }))} options={POLICY_STATUSES} />
             </div>
-            <FormField label="ESRS-pflichtig" type="checkbox" value={formData.is_mandatory || false} onChange={(v) => setFormData(p => ({ ...p, is_mandatory: v }))} />
+            <div style={{
+              padding: `${tokens.spacing.sm}px ${tokens.spacing.md}px`,
+              background: formData.is_mandatory ? `${tokens.colors.info}10` : tokens.colors.background,
+              border: `1px solid ${formData.is_mandatory ? tokens.colors.info : tokens.colors.border}`,
+              borderRadius: tokens.radii.sm,
+              fontSize: tokens.typography.fontSize.sm,
+              color: formData.is_mandatory ? tokens.colors.info : tokens.colors.textSecondary,
+            }}>
+              {formData.is_mandatory
+                ? '📋 ESRS-Offenlegungspflicht — dieses Thema ist wesentlich, eine Richtlinie muss im Bericht ausgewiesen werden.'
+                : '○ Freiwillig — dieses Thema ist nicht als wesentlich eingestuft, die Richtlinie ist optional.'}
+            </div>
             <div style={gridTwo}>
               <FormField label="Verantwortliche Person" value={formData.responsible_person || ''} onChange={(v) => setFormData(p => ({ ...p, responsible_person: v }))} />
               <FormField label="Abteilung" value={formData.responsible_department || ''} onChange={(v) => setFormData(p => ({ ...p, responsible_department: v }))} />
@@ -293,12 +370,10 @@ export default function TopicItemsSection({ topicCode, section }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tokens.spacing.xs }}>
                 <label style={{ fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.medium, color: tokens.colors.textSecondary }}>Beschreibung</label>
-                <Button variant="ai" size="sm" disabled={generating || !formData.title} onClick={async () => {
-                  const text = await generateItemDescription('target', formData.title, topicCode);
-                  setFormData(p => ({ ...p, description: text }));
-                }}>{generating ? 'Generiere...' : 'KI-Beschreibung'}</Button>
+                <Button variant="ai" size="sm" disabled={generating || !formData.title} onClick={() => generateAndPreview('target')}>{aiButtonLabel('KI-Beschreibung')}</Button>
               </div>
               <FormField type="textarea" value={formData.description || ''} onChange={(v) => setFormData(p => ({ ...p, description: v }))} rows={4} />
+              {renderAiSuggestion()}
             </div>
             <div style={gridTwo}>
               <FormField label="Zieltyp" type="select" value={formData.target_type || 'Absolut'} onChange={(v) => setFormData(p => ({ ...p, target_type: v }))} options={TARGET_TYPES} />
@@ -373,12 +448,10 @@ export default function TopicItemsSection({ topicCode, section }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tokens.spacing.xs }}>
                 <label style={{ fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.medium, color: tokens.colors.textSecondary }}>Beschreibung</label>
-                <Button variant="ai" size="sm" disabled={generating || !formData.title} onClick={async () => {
-                  const text = await generateItemDescription('action', formData.title, topicCode);
-                  setFormData(p => ({ ...p, description: text }));
-                }}>{generating ? 'Generiere...' : 'KI-Beschreibung'}</Button>
+                <Button variant="ai" size="sm" disabled={generating || !formData.title} onClick={() => generateAndPreview('action')}>{aiButtonLabel('KI-Beschreibung')}</Button>
               </div>
               <FormField type="textarea" value={formData.description || ''} onChange={(v) => setFormData(p => ({ ...p, description: v }))} rows={4} />
+              {renderAiSuggestion()}
             </div>
             <div style={gridTwo}>
               <FormField label="Status" type="select" value={formData.status || 'Geplant'} onChange={(v) => setFormData(p => ({ ...p, status: v }))} options={ACTION_STATUSES} />

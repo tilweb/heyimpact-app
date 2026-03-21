@@ -1,3 +1,7 @@
+import { getMaterialTopicCodes } from './scoring.js';
+import { getTopicCoverage, buildGapSummary } from './completeness.js';
+import { ESRS_TOPICS } from './esrsConstants.js';
+
 /**
  * Converts JSON report data to a compact YAML-like format
  * to reduce token count while preserving all information
@@ -181,6 +185,98 @@ export const createCompactReport = (reportData) => {
 };
 
 /**
+ * Generates a page-specific analysis message (no LLM call, purely computed).
+ * Returns a markdown string or null if no relevant analysis for this route.
+ */
+export const generatePageAnalysis = (report, pathname) => {
+  if (!report) return null;
+  const materialCodes = getMaterialTopicCodes(report);
+
+  const topicGroups = {
+    '/environmental': ['E1', 'E2', 'E3', 'E4', 'E5'],
+    '/social': ['S1', 'S2', 'S3', 'S4'],
+    '/governance': ['G1'],
+    '/targets': null,
+  };
+
+  if (topicGroups[pathname] !== null && topicGroups[pathname]) {
+    const codes = topicGroups[pathname];
+    const relevantMaterial = codes.filter(c => materialCodes.includes(c));
+    const lines = [];
+
+    const pageLabels = {
+      '/environmental': 'Umwelt', '/social': 'Soziales', '/governance': 'Governance',
+    };
+    lines.push(`**Seitenanalyse: ${pageLabels[pathname]}**\n`);
+
+    if (relevantMaterial.length === 0) {
+      lines.push('Auf dieser Seite gibt es aktuell keine wesentlichen Themen aus der IRO-Bewertung.\n');
+    } else {
+      lines.push(`Wesentliche Themen auf dieser Seite: ${relevantMaterial.join(', ')}\n`);
+    }
+
+    const withGaps = codes.map(code => {
+      const cov = getTopicCoverage(report, code);
+      const topic = ESRS_TOPICS.find(t => t.code === code);
+      const name = topic?.name || code;
+      const isMat = materialCodes.includes(code);
+      const missing = [];
+      if (cov.data === 'empty') missing.push('Daten fehlen');
+      if (!cov.policy) missing.push('keine Richtlinie');
+      if (!cov.target) missing.push('kein Ziel');
+      if (!cov.action) missing.push('keine Maßnahme');
+
+      return { code, name, isMat, missing, cov };
+    });
+
+    withGaps.forEach(({ name, isMat, missing, cov }) => {
+      const prefix = isMat ? '⚠' : '·';
+      if (missing.length === 0) {
+        lines.push(`${prefix} ${name} — vollständig abgedeckt ✓`);
+      } else {
+        lines.push(`${prefix} ${name}${isMat ? ' (wesentlich)' : ''} — ${missing.join(', ')}`);
+      }
+    });
+
+    lines.push('\n_Klicken Sie auf Zellen im Cockpit, um direkt zu den fehlenden Bereichen zu navigieren._');
+    return lines.join('\n');
+  }
+
+  if (pathname === '/targets') {
+    if (materialCodes.length === 0) {
+      return '**Seitenanalyse: Ziele & Maßnahmen**\n\nNoch keine wesentlichen Themen aus der IRO-Bewertung. Bitte zuerst die IRO-Bewertung abschließen.';
+    }
+    const lines = ['**Seitenanalyse: Ziele & Maßnahmen**\n'];
+    const gaps = materialCodes.map(code => {
+      const cov = getTopicCoverage(report, code);
+      const missing = [];
+      if (!cov.policy) missing.push('Richtlinie');
+      if (!cov.target) missing.push('Ziel');
+      if (!cov.action) missing.push('Maßnahme');
+      return { code, missing };
+    }).filter(g => g.missing.length > 0);
+
+    if (gaps.length === 0) {
+      lines.push('Alle wesentlichen Themen haben Richtlinie, Ziel und Maßnahme. ✓');
+    } else {
+      lines.push('Fehlende Elemente für wesentliche Themen:');
+      gaps.forEach(({ code, missing }) => lines.push(`⚠ ${code}: ${missing.join(', ')} fehlt`));
+    }
+    return lines.join('\n');
+  }
+
+  if (pathname === '/iro') {
+    const assessments = report.iro_summary?.assessments || [];
+    const assessed = assessments.filter(a =>
+      (a.impacts || []).length > 0 || (a.risks || []).length > 0 || (a.opportunities || []).length > 0
+    );
+    return `**Seitenanalyse: IRO-Bewertung**\n\n${assessed.length} von 10 Themen bewertet. ${materialCodes.length > 0 ? `Wesentliche Themen bisher: ${materialCodes.join(', ')}.` : 'Noch keine wesentlichen Themen identifiziert.'}`;
+  }
+
+  return null;
+};
+
+/**
  * Generates the system prompt with the report data
  * Adapted for HeyImpact: assists users while they are editing/creating the report
  */
@@ -238,6 +334,9 @@ ${yamlData}
 - Halte Antworten unter 300 Wörter
 - Formatiere Antworten übersichtlich mit Aufzählungen wo sinnvoll
 - Wenn der Benutzer nach Themen fragt, die nicht zum Nachhaltigkeitsbericht gehören, weise freundlich darauf hin
+
+## Aktuelle Lücken
+${buildGapSummary(reportData)}
 
 ## Quellenangabe
 Füge am Ende jeder Antwort einen kurzen Hinweis hinzu, aus welchem Berichtsbereich die Informationen stammen.

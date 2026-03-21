@@ -12,6 +12,7 @@ import EnvironmentalPage from './pages/EnvironmentalPage.jsx';
 import SocialPage from './pages/SocialPage.jsx';
 import GovernancePage from './pages/GovernancePage.jsx';
 import TargetsActionsPage from './pages/TargetsActionsPage.jsx';
+import CockpitPage from './pages/CockpitPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
 import TodoListPage from './pages/TodoListPage.jsx';
 import VsmePage from './pages/VsmePage.jsx';
@@ -34,6 +35,7 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="cockpit" element={<CockpitPage />} />
         <Route path="import" element={<DocumentImportPage />} />
         <Route path="organization" element={<OrganizationPage />} />
         <Route path="iro" element={<IROAssessmentPage />} />

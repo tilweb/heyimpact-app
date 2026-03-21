@@ -13,6 +13,7 @@ import SectionStatusBar from '../components/ui/SectionStatusBar.jsx';
 import { getMaterialTopicCodes } from '../utils/scoring.js';
 import { formatNumber, formatPercent } from '../utils/formatting.js';
 import TopicItemsSection from '../components/TopicItemsSection.jsx';
+import { getTopicCoverage } from '../utils/completeness.js';
 
 export default function EnvironmentalPage() {
   const { report, updateReport } = useReport();
@@ -127,14 +128,17 @@ export default function EnvironmentalPage() {
     : null;
 
   // --- Sub-tab helper ---
-  const renderTopicWithSubTabs = (topicCode, metricsContent) => (
-    <TabPanel tabs={[
-      { label: 'Metriken', content: metricsContent },
-      { label: 'Richtlinien', content: <TopicItemsSection topicCode={topicCode} section="policies" /> },
-      { label: 'Ziele', content: <TopicItemsSection topicCode={topicCode} section="targets" /> },
-      { label: 'Massnahmen', content: <TopicItemsSection topicCode={topicCode} section="actions" /> },
-    ]} />
-  );
+  const renderTopicWithSubTabs = (topicCode, metricsContent) => {
+    const cov = getTopicCoverage(report, topicCode);
+    return (
+      <TabPanel tabs={[
+        { label: 'Metriken', content: metricsContent },
+        { label: `Richtlinien (${cov.policy})`, content: <TopicItemsSection topicCode={topicCode} section="policies" /> },
+        { label: `Ziele (${cov.target})`, content: <TopicItemsSection topicCode={topicCode} section="targets" /> },
+        { label: `Maßnahmen (${cov.action})`, content: <TopicItemsSection topicCode={topicCode} section="actions" /> },
+      ]} />
+    );
+  };
 
   // --- E1 Metrics ---
   const renderE1Metrics = () => (

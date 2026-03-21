@@ -9,9 +9,10 @@ const ChatMessages = () => {
   const { sendMessage } = useChatApi();
 
   const suggestions = [
-    'Welche Daten fehlen noch im Bericht?',
-    'Fasse den aktuellen Stand zusammen',
-    'Was sind die wesentlichen Themen?',
+    { text: 'Was fehlt bei den wesentlichen Themen?', icon: '⚠' },
+    { text: 'Welche nächsten Schritte empfiehlst du?', icon: '📝' },
+    { text: 'Fasse den aktuellen Stand zusammen', icon: '📊' },
+    { text: 'Was sind die wesentlichen Themen?', icon: '🎯' },
   ];
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
@@ -56,7 +57,7 @@ const ChatMessages = () => {
             {suggestions.map((suggestion, index) => (
               <div
                 key={index}
-                onClick={() => sendMessage(suggestion)}
+                onClick={() => sendMessage(suggestion.text)}
                 style={{
                   padding: `${tokens.spacing.md}px ${tokens.spacing.lg}px`,
                   backgroundColor: tokens.colors.surfaceHover,
@@ -66,11 +67,15 @@ const ChatMessages = () => {
                   cursor: 'pointer',
                   textAlign: 'left',
                   transition: 'background-color 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: tokens.spacing.sm,
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = tokens.colors.border}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = tokens.colors.surfaceHover}
               >
-                {suggestion}
+                <span style={{ flexShrink: 0 }}>{suggestion.icon}</span>
+                {suggestion.text}
               </div>
             ))}
           </div>

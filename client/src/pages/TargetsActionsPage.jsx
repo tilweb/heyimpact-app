@@ -16,6 +16,7 @@ import SectionStatusBar from '../components/ui/SectionStatusBar.jsx';
 import { ESRS_TOPICS } from '../utils/esrsConstants.js';
 import { SDG_DEFINITIONS, ESRS_SDG_MAPPING, getSDGDisplay, getRelevantSDGs } from '../utils/sdg.js';
 import { getMaterialTopicCodes } from '../utils/scoring.js';
+import { buildReportContext } from '../utils/llmContext.js';
 
 const TAB_LABELS = ['Richtlinien', 'Ziele', 'Massnahmen', 'SDG-Uebersicht'];
 
@@ -48,6 +49,65 @@ export default function TargetsActionsPage() {
   const [policyModalOpen, setPolicyModalOpen] = useState(false);
   const [targetModalOpen, setTargetModalOpen] = useState(false);
   const [actionModalOpen, setActionModalOpen] = useState(false);
+
+  // AI suggestion preview (shared — only one modal open at a time)
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+
+  const generateAndPreview = async (type, title, topic, existingDescription) => {
+    const text = await generateItemDescription(type, title, topic, buildReportContext(report, topic), existingDescription || null);
+    if (text) setAiSuggestion({ text, type });
+  };
+
+  const applyAiSuggestion = (setter, currentDescription, mode) => {
+    if (mode === 'replace') {
+      setter(p => ({ ...p, description: aiSuggestion.text }));
+    } else if (mode === 'append') {
+      setter(p => ({ ...p, description: [currentDescription, aiSuggestion.text].filter(Boolean).join('\n\n') }));
+    }
+    setAiSuggestion(null);
+  };
+
+  const renderAiSuggestion = (setter, currentDescription) => {
+    if (!aiSuggestion) return null;
+    return (
+      <div style={{
+        background: `${tokens.colors.primary}08`,
+        border: `1px solid ${tokens.colors.primary}33`,
+        borderRadius: tokens.radii.md,
+        padding: tokens.spacing.lg,
+      }}>
+        <div style={{
+          fontSize: tokens.typography.fontSize.xs,
+          fontWeight: tokens.typography.fontWeight.semibold,
+          color: tokens.colors.primary,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          marginBottom: tokens.spacing.sm,
+        }}>
+          KI-Vorschlag
+        </div>
+        <p style={{
+          fontSize: tokens.typography.fontSize.sm,
+          color: tokens.colors.text,
+          lineHeight: 1.6,
+          margin: `0 0 ${tokens.spacing.md}px`,
+          whiteSpace: 'pre-wrap',
+        }}>
+          {aiSuggestion.text}
+        </p>
+        <div style={{ display: 'flex', gap: tokens.spacing.sm, flexWrap: 'wrap' }}>
+          <Button size="sm" onClick={() => applyAiSuggestion(setter, currentDescription, 'replace')}>Übernehmen</Button>
+          <Button size="sm" variant="secondary" onClick={() => applyAiSuggestion(setter, currentDescription, 'append')}>Anhängen</Button>
+          <Button size="sm" variant="secondary" onClick={() => setAiSuggestion(null)}>Verwerfen</Button>
+        </div>
+      </div>
+    );
+  };
+
+  const aiButtonLabel = (title, description) => {
+    if (generating) return 'Generiere...';
+    return description?.trim() ? 'KI verbessern' : 'KI-Beschreibung';
+  };
 
   // New item forms
   const [newPolicy, setNewPolicy] = useState({
@@ -402,7 +462,7 @@ export default function TargetsActionsPage() {
               label="ESRS-Thema"
               type="select"
               value={newPolicy.topic}
-              onChange={(v) => setNewPolicy(p => ({ ...p, topic: v }))}
+              onChange={(v) => setNewPolicy(p => ({ ...p, topic: v, is_mandatory: materialCodes.includes(v) }))}
               options={TOPIC_OPTIONS}
               required
             />
@@ -417,19 +477,17 @@ export default function TargetsActionsPage() {
                 <label style={{ fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.medium, color: tokens.colors.textSecondary }}>
                   Beschreibung
                 </label>
-                <Button variant="ai" size="sm" disabled={generating || !newPolicy.title} onClick={async () => {
-                  const text = await generateItemDescription('policy', newPolicy.title, newPolicy.topic);
-                  setNewPolicy(p => ({ ...p, description: text }));
-                }}>
-                  {generating ? 'Generiere...' : 'KI-Beschreibung'}
+                <Button variant="ai" size="sm" disabled={generating || !newPolicy.title} onClick={() => generateAndPreview('policy', newPolicy.title, newPolicy.topic, newPolicy.description)}>
+                  {aiButtonLabel(newPolicy.title, newPolicy.description)}
                 </Button>
               </div>
               <FormField
                 type="textarea"
                 value={newPolicy.description}
-                onChange={(v) => setNewPolicy(p => ({ ...p, description: v }))}
+                onChange={(v) => { setNewPolicy(p => ({ ...p, description: v })); setAiSuggestion(null); }}
                 rows={4}
               />
+              {renderAiSuggestion(setNewPolicy, newPolicy.description)}
             </div>
             <div style={gridTwo}>
               <FormField
@@ -447,12 +505,20 @@ export default function TargetsActionsPage() {
                 options={POLICY_STATUSES}
               />
             </div>
-            <FormField
-              label="ESRS-pflichtig"
-              type="checkbox"
-              value={newPolicy.is_mandatory}
-              onChange={(v) => setNewPolicy(p => ({ ...p, is_mandatory: v }))}
-            />
+            {newPolicy.topic && (
+              <div style={{
+                padding: `${tokens.spacing.sm}px ${tokens.spacing.md}px`,
+                background: newPolicy.is_mandatory ? `${tokens.colors.info}10` : tokens.colors.background,
+                border: `1px solid ${newPolicy.is_mandatory ? tokens.colors.info : tokens.colors.border}`,
+                borderRadius: tokens.radii.sm,
+                fontSize: tokens.typography.fontSize.sm,
+                color: newPolicy.is_mandatory ? tokens.colors.info : tokens.colors.textSecondary,
+              }}>
+                {newPolicy.is_mandatory
+                  ? '📋 ESRS-Offenlegungspflicht — dieses Thema ist wesentlich, eine Richtlinie muss im Bericht ausgewiesen werden.'
+                  : '○ Freiwillig — dieses Thema ist nicht als wesentlich eingestuft, die Richtlinie ist optional.'}
+              </div>
+            )}
             <div style={gridTwo}>
               <FormField
                 label="Verantwortliche Person"
@@ -650,19 +716,17 @@ export default function TargetsActionsPage() {
                 <label style={{ fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.medium, color: tokens.colors.textSecondary }}>
                   Beschreibung
                 </label>
-                <Button variant="ai" size="sm" disabled={generating || !newTarget.title} onClick={async () => {
-                  const text = await generateItemDescription('target', newTarget.title, newTarget.topic);
-                  setNewTarget(p => ({ ...p, description: text }));
-                }}>
-                  {generating ? 'Generiere...' : 'KI-Beschreibung'}
+                <Button variant="ai" size="sm" disabled={generating || !newTarget.title} onClick={() => generateAndPreview('target', newTarget.title, newTarget.topic, newTarget.description)}>
+                  {aiButtonLabel(newTarget.title, newTarget.description)}
                 </Button>
               </div>
               <FormField
                 type="textarea"
                 value={newTarget.description}
-                onChange={(v) => setNewTarget(p => ({ ...p, description: v }))}
+                onChange={(v) => { setNewTarget(p => ({ ...p, description: v })); setAiSuggestion(null); }}
                 rows={4}
               />
+              {renderAiSuggestion(setNewTarget, newTarget.description)}
             </div>
             <div style={gridTwo}>
               <FormField
@@ -892,19 +956,17 @@ export default function TargetsActionsPage() {
                 <label style={{ fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.medium, color: tokens.colors.textSecondary }}>
                   Beschreibung
                 </label>
-                <Button variant="ai" size="sm" disabled={generating || !newAction.title} onClick={async () => {
-                  const text = await generateItemDescription('action', newAction.title, newAction.topic);
-                  setNewAction(p => ({ ...p, description: text }));
-                }}>
-                  {generating ? 'Generiere...' : 'KI-Beschreibung'}
+                <Button variant="ai" size="sm" disabled={generating || !newAction.title} onClick={() => generateAndPreview('action', newAction.title, newAction.topic, newAction.description)}>
+                  {aiButtonLabel(newAction.title, newAction.description)}
                 </Button>
               </div>
               <FormField
                 type="textarea"
                 value={newAction.description}
-                onChange={(v) => setNewAction(p => ({ ...p, description: v }))}
+                onChange={(v) => { setNewAction(p => ({ ...p, description: v })); setAiSuggestion(null); }}
                 rows={4}
               />
+              {renderAiSuggestion(setNewAction, newAction.description)}
             </div>
             <div style={gridTwo}>
               <FormField

@@ -39,6 +39,11 @@ export const ChatProvider = ({ children }) => {
     setMessages([]);
   }, []);
 
+  const openWithMessage = useCallback((content) => {
+    setIsOpen(true);
+    setMessages(prev => [...prev, { role: 'assistant', content, timestamp: new Date().toISOString() }]);
+  }, []);
+
   const value = {
     isOpen,
     messages,
@@ -47,6 +52,7 @@ export const ChatProvider = ({ children }) => {
     toggleChat,
     openChat,
     closeChat,
+    openWithMessage,
     addMessage,
     updateLastMessage,
     clearMessages,

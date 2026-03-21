@@ -10,6 +10,7 @@ const navGroups = [
     label: 'ESRS Bericht',
     items: [
       { to: '/', label: 'Start', icon: '🏠' },
+      { to: '/cockpit', label: 'Cockpit', icon: '🧭' },
       { to: '/import', label: 'Dokument-Import', icon: '📄' },
       { to: '/organization', label: 'Unternehmensdaten', icon: '🏢' },
       { to: '/iro', label: 'IRO-Bewertung', icon: '📊' },

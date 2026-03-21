@@ -402,32 +402,44 @@ Antworte NUR mit der Beschreibung, ohne Einleitung.`;
   }
 }
 
-export async function generateItemDescription(type, title, topic) {
+export async function generateItemDescription(type, title, topic, context, existingDescription) {
   const typeLabels = { policy: 'Richtlinie', target: 'Ziel', action: 'Maßnahme' };
   const typeLabel = typeLabels[type] || type;
 
-  const prompt = `Du bist ein Experte für ESRS-Nachhaltigkeitsberichterstattung.
+  const orgName = context ? context.split('\n')[0]?.replace('Organisation: ', '') : null;
 
-Erstelle eine prägnante Beschreibung für folgende ${typeLabel}:
+  const prompt = existingDescription
+    ? `Du bist ein Experte für ESRS-Nachhaltigkeitsberichterstattung.
 
-ESRS-THEMA: ${topic}
-TYP: ${typeLabel}
-TITEL: ${title}
+Deine Aufgabe: Formuliere den folgenden Text professioneller und vollständiger aus. Gib NUR den überarbeiteten Text zurück — keine Überschriften, keine Einleitung, kein Kommentar.
 
-Die Beschreibung soll:
-- 2-4 Sätze lang sein
-- Konkret beschreiben, was die ${typeLabel} beinhaltet
-- Auf das ESRS-Thema Bezug nehmen
-- Bei Zielen: messbare Kriterien andeuten
-- Bei Maßnahmen: konkrete Schritte skizzieren
-- Bei Richtlinien: Geltungsbereich und Kerninhalt beschreiben
-- Sachlich und professionell formuliert sein
-- Auf Deutsch sein
+Kontext: ${typeLabel} zum ESRS-Thema ${topic}${orgName ? ` bei ${orgName}` : ''}.
 
-Antworte NUR mit der Beschreibung, ohne Einleitung.`;
+Zu überarbeitender Text:
+${existingDescription}
+
+Regeln:
+- Inhalt und Intention beibehalten, sprachlich professionalisieren
+- Stichpunkte zu vollständigen Sätzen ausformulieren
+- Maximal 2-3 Sätze, fokussiert auf die ${typeLabel}
+- Keine neuen Zahlen oder Fakten erfinden
+- Professionelles Deutsch`
+    : `Du bist ein Experte für ESRS-Nachhaltigkeitsberichterstattung.
+
+Deine Aufgabe: Schreibe eine kurze Beschreibung. Gib NUR die Beschreibung zurück — keine Überschriften, keine Einleitung, kein Kommentar.
+
+Kontext: ${typeLabel} "${title}" zum ESRS-Thema ${topic}${orgName ? ` bei ${orgName}` : ''}.
+
+Regeln:
+- Maximal 2-3 Sätze — was tut diese ${typeLabel} und was bezweckt sie?
+- Keine Zahlen erfinden
+- Bei Maßnahmen: konkretes Vorgehen und Ziel
+- Bei Zielen: Richtung und Zeithorizont
+- Bei Richtlinien: Geltungsbereich und Kernverpflichtung
+- Professionelles Deutsch`;
 
   try {
-    return await chatCompletion(prompt, 300);
+    return await chatCompletion(prompt, 250);
   } catch (e) {
     return `Fehler bei der LLM-Generierung: ${e.message}`;
   }
@@ -577,6 +589,40 @@ Antworte NUR mit der Beschreibung.`;
 
   try {
     return await chatCompletion(prompt, 800, 0.4);
+  } catch (e) {
+    return `Fehler bei der LLM-Generierung: ${e.message}`;
+  }
+}
+
+export async function generateCockpitStatus(report, gapSummary) {
+  const org = report.organization || {};
+  const materialCodes = (report.iro_summary?.assessments || [])
+    .filter(a => {
+      const maxImpact = Math.max(0, ...(a.impacts || []).map(i => (i.scale + i.scope + i.irreversibility) * i.probability));
+      const maxRisk = Math.max(0, ...(a.risks || []).map(r => r.financial_impact * r.probability));
+      const maxOpp = Math.max(0, ...(a.opportunities || []).map(o => o.financial_impact * o.probability));
+      return maxImpact >= IMPACT_THRESHOLD || maxRisk >= RISK_OPPORTUNITY_THRESHOLD || maxOpp >= RISK_OPPORTUNITY_THRESHOLD;
+    })
+    .map(a => a.topic_code);
+
+  const prompt = `Du bist ein ESRS-Nachhaltigkeitsberater. Erstelle einen kurzen, prägnanten Lagebericht (genau 3-4 Sätze) für den folgenden Berichtsstand.
+
+UNTERNEHMEN: ${org.name || 'k.A.'}
+WESENTLICHE THEMEN (${materialCodes.length}): ${materialCodes.join(', ') || 'noch keine identifiziert'}
+
+${gapSummary}
+
+Der Lagebericht soll:
+- Den aktuellen Berichtsstand ehrlich und klar zusammenfassen
+- Die größten Lücken benennen (besonders bei wesentlichen Themen)
+- Eine konkrete nächste Priorität nennen
+- Ermutigend und handlungsorientiert formuliert sein
+- Auf Deutsch sein
+
+Antworte NUR mit dem Lagebericht (3-4 Sätze), ohne Überschrift oder Einleitung.`;
+
+  try {
+    return await chatCompletion(prompt, 300, 0.4);
   } catch (e) {
     return `Fehler bei der LLM-Generierung: ${e.message}`;
   }

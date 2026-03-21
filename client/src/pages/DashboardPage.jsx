@@ -45,7 +45,7 @@ export default function DashboardPage() {
     setCreating(true);
     try {
       await createReport(companyName, fiscalYear);
-      navigate('/organization');
+      navigate('/cockpit');
     } catch {} finally {
       setCreating(false);
     }
@@ -55,7 +55,7 @@ export default function DashboardPage() {
     setImporting(true);
     try {
       await importReport();
-      navigate('/organization');
+      navigate('/cockpit');
     } catch {} finally {
       setImporting(false);
     }
@@ -63,7 +63,7 @@ export default function DashboardPage() {
 
   const handleLoad = async (id) => {
     await loadReport(id);
-    navigate('/organization');
+    navigate('/cockpit');
   };
 
   const handleUpload = async (e) => {
@@ -86,7 +86,7 @@ export default function DashboardPage() {
         throw new Error('Ungueltige Daten');
       }
       await uploadReport(data);
-      navigate('/organization');
+      navigate('/cockpit');
     } catch (err) {
       setUploadError(err.message === 'Unexpected token' || err instanceof SyntaxError
         ? 'Die Datei enthaelt kein gueltiges JSON.'
